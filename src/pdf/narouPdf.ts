@@ -21,12 +21,15 @@ interface PdfViewportLike {
 interface PdfPageLike {
   getViewport(options: { scale: number }): PdfViewportLike;
   getTextContent(): Promise<TextContentLike>;
+  cleanup?(): boolean;
 }
 
 export interface NarouPdfDocumentLike {
   numPages: number;
   getPage(pageNumber: number): Promise<PdfPageLike>;
 }
+
+export type NarouPdfProgressCallback = (processedPages: number, totalPages: number) => void;
 
 interface PositionedTextItem {
   text: string;
@@ -63,6 +66,12 @@ interface PageExtraction {
   segments: ParagraphSegment[];
 }
 
+interface HeadingDetection {
+  heading: PageHeading | null;
+  headingColumn: TextColumn | null;
+  skipContent: boolean;
+}
+
 export interface NarouPdfResult {
   title: string;
   author: string;
@@ -73,7 +82,7 @@ export interface NarouPdfResult {
 const PREFACE_SUFFIX = '（前書き）';
 const AFTERWORD_SUFFIX = '（後書き）';
 const NOTICE_HEADING = '注意事項';
-const EXTRACTION_CONCURRENCY = 6;
+const EXTRACTION_CONCURRENCY = 4;
 
 const verticalCharacterMap: Record<string, string> = {
   '﹁': '「',
@@ -358,12 +367,20 @@ async function detectHeadingColumnX(pdf: NarouPdfDocumentLike): Promise<number |
 
   for (let pageNumber = 2; pageNumber <= lastPage; pageNumber += 1) {
     const page = await pdf.getPage(pageNumber);
-    const viewport = page.getViewport({ scale: 1 });
-    const textContent = await page.getTextContent();
-    const positioned = textContent.items.filter(isTextItem).map((item) => positionTextItem(item, viewport));
-    const { columns } = buildColumns(positioned, viewport);
-    const noticeColumn = columns.find((column) => compactText(columnText(column)) === NOTICE_HEADING);
-    if (noticeColumn) return noticeColumn.x;
+    try {
+      const viewport = page.getViewport({ scale: 1 });
+      const textContent = await page.getTextContent();
+      const positioned = textContent.items
+        .filter(isTextItem)
+        .map((item) => positionTextItem(item, viewport));
+      const { columns } = buildColumns(positioned, viewport);
+      const noticeColumn = columns.find(
+        (column) => compactText(columnText(column)) === NOTICE_HEADING,
+      );
+      if (noticeColumn) return noticeColumn.x;
+    } finally {
+      page.cleanup?.();
+    }
   }
 
   return null;
@@ -374,14 +391,16 @@ function detectPageHeading(
   bodyFontSize: number,
   viewport: PdfViewportLike,
   headingColumnX: number,
-): { heading: PageHeading | null; headingColumn: TextColumn | null } {
+): HeadingDetection {
   const visibleColumns = columns.filter((column) => {
     const text = columnText(column);
     return text.trim() && !isImagePlaceholder(text);
   });
 
   const rightmost = visibleColumns[0];
-  if (!rightmost) return { heading: null, headingColumn: null };
+  if (!rightmost) {
+    return { heading: null, headingColumn: null, skipContent: false };
+  }
 
   const second = visibleColumns[1];
   const xMatches = Math.abs(rightmost.x - headingColumnX) <= bodyFontSize * 0.28;
@@ -391,16 +410,17 @@ function detectPageHeading(
   const text = compactText(columnText(rightmost));
 
   if (!xMatches || !yMatches || !hasHeadingGap || text.length > 90) {
-    return { heading: null, headingColumn: null };
+    return { heading: null, headingColumn: null, skipContent: false };
   }
 
   if (text === NOTICE_HEADING) {
-    return { heading: null, headingColumn: rightmost };
+    return { heading: null, headingColumn: rightmost, skipContent: true };
   }
 
   return {
     heading: parseHeading(text),
     headingColumn: rightmost,
+    skipContent: false,
   };
 }
 
@@ -410,43 +430,54 @@ async function extractPage(
   headingColumnX: number | null,
 ): Promise<PageExtraction> {
   const page = await pdf.getPage(pageNumber);
-  const viewport = page.getViewport({ scale: 1 });
-  const textContent = await page.getTextContent();
-  const positioned = textContent.items.filter(isTextItem).map((item) => positionTextItem(item, viewport));
-  const { columns, bodyFontSize } = buildColumns(positioned, viewport);
-  const effectiveHeadingX = headingColumnX ?? viewport.width * 0.874;
-  const { heading, headingColumn } = detectPageHeading(
-    columns,
-    bodyFontSize,
-    viewport,
-    effectiveHeadingX,
-  );
 
-  const bodyColumns = columns
-    .filter((column) => column !== headingColumn)
-    .filter((column) => !isImagePlaceholder(columnText(column)))
-    .sort((a, b) => b.x - a.x);
+  try {
+    const viewport = page.getViewport({ scale: 1 });
+    const textContent = await page.getTextContent();
+    const positioned = textContent.items
+      .filter(isTextItem)
+      .map((item) => positionTextItem(item, viewport));
+    const { columns, bodyFontSize } = buildColumns(positioned, viewport);
+    const effectiveHeadingX = headingColumnX ?? viewport.width * 0.874;
+    const { heading, headingColumn, skipContent } = detectPageHeading(
+      columns,
+      bodyFontSize,
+      viewport,
+      effectiveHeadingX,
+    );
 
-  const segments: ParagraphSegment[] = [];
-  let previousX: number | null = null;
-  const expectedTop = viewport.height * 0.16;
+    if (skipContent) {
+      return { heading: null, segments: [] };
+    }
 
-  for (const column of bodyColumns) {
-    const text = columnText(column).trim();
-    if (!text) continue;
+    const bodyColumns = columns
+      .filter((column) => column !== headingColumn)
+      .filter((column) => !isImagePlaceholder(columnText(column)))
+      .sort((a, b) => b.x - a.x);
 
-    const startsByIndent = column.yMin > expectedTop + bodyFontSize * 0.65;
-    const startsAfterGap =
-      previousX !== null && previousX - column.x > bodyFontSize * 2.2;
+    const segments: ParagraphSegment[] = [];
+    let previousX: number | null = null;
+    const expectedTop = viewport.height * 0.16;
 
-    segments.push({
-      text,
-      startsParagraph: startsByIndent || startsAfterGap,
-    });
-    previousX = column.x;
+    for (const column of bodyColumns) {
+      const text = columnText(column).trim();
+      if (!text) continue;
+
+      const startsByIndent = column.yMin > expectedTop + bodyFontSize * 0.65;
+      const startsAfterGap =
+        previousX !== null && previousX - column.x > bodyFontSize * 2.2;
+
+      segments.push({
+        text,
+        startsParagraph: startsByIndent || startsAfterGap,
+      });
+      previousX = column.x;
+    }
+
+    return { heading, segments };
+  } finally {
+    page.cleanup?.();
   }
-
-  return { heading, segments };
 }
 
 function appendSegments(
@@ -460,7 +491,8 @@ function appendSegments(
     const text = segment.text.trim();
     if (!text) continue;
 
-    const startsParagraph = paragraphs.length === 0 || segment.startsParagraph || (first && forceFirstParagraph);
+    const startsParagraph =
+      paragraphs.length === 0 || segment.startsParagraph || (first && forceFirstParagraph);
     if (startsParagraph) {
       paragraphs.push(text);
     } else {
@@ -475,64 +507,83 @@ async function extractCoverMetadata(
   fileName: string,
 ): Promise<{ title: string; author: string; ncode: string | null }> {
   const page = await pdf.getPage(1);
-  const viewport = page.getViewport({ scale: 1 });
-  const textContent = await page.getTextContent();
-  const horizontal = textContent.items
-    .filter(isTextItem)
-    .map((item) => positionTextItem(item, viewport))
-    .filter((item) => item.dir !== 'ttb' && item.text.trim());
 
-  const lineTolerance = 4;
-  const lines: Array<{ y: number; fontSize: number; items: PositionedTextItem[] }> = [];
+  try {
+    const viewport = page.getViewport({ scale: 1 });
+    const textContent = await page.getTextContent();
+    const horizontal = textContent.items
+      .filter(isTextItem)
+      .map((item) => positionTextItem(item, viewport))
+      .filter((item) => item.dir !== 'ttb' && item.text.trim());
 
-  for (const item of [...horizontal].sort((a, b) => a.y - b.y || a.x - b.x)) {
-    let line = lines.find((candidate) => Math.abs(candidate.y - item.y) <= lineTolerance);
-    if (!line) {
-      line = { y: item.y, fontSize: item.fontSize, items: [] };
-      lines.push(line);
+    const lineTolerance = 4;
+    const lines: Array<{ y: number; fontSize: number; items: PositionedTextItem[] }> = [];
+
+    for (const item of [...horizontal].sort((a, b) => a.y - b.y || a.x - b.x)) {
+      let line = lines.find((candidate) => Math.abs(candidate.y - item.y) <= lineTolerance);
+      if (!line) {
+        line = { y: item.y, fontSize: item.fontSize, items: [] };
+        lines.push(line);
+      }
+      line.items.push(item);
+      line.fontSize = Math.max(line.fontSize, item.fontSize);
+      line.y = line.items.reduce((sum, value) => sum + value.y, 0) / line.items.length;
     }
-    line.items.push(item);
-    line.fontSize = Math.max(line.fontSize, item.fontSize);
-    line.y = line.items.reduce((sum, value) => sum + value.y, 0) / line.items.length;
+
+    const normalizedLines = lines
+      .map((line) => ({
+        y: line.y,
+        fontSize: line.fontSize,
+        text: line.items
+          .sort((a, b) => a.x - b.x)
+          .map((item) => item.text)
+          .join('')
+          .trim(),
+      }))
+      .filter(
+        (line) =>
+          line.text &&
+          !/^HinaProject Inc\.?$/i.test(line.text) &&
+          !/^[0-9０-９]+$/.test(line.text),
+      );
+
+    const titleLine = [...normalizedLines].sort((a, b) => b.fontSize - a.fontSize)[0];
+    const authorLine = titleLine
+      ? normalizedLines
+          .filter((line) => line !== titleLine && line.y > titleLine.y)
+          .sort((a, b) => a.y - b.y)[0]
+      : undefined;
+
+    const fileBase = fileName.replace(/\.pdf$/i, '').trim();
+    const ncode = /^N[0-9A-Z]+$/i.test(fileBase) ? fileBase.toUpperCase() : null;
+
+    return {
+      title: titleLine?.text || fileBase || '読み込んだPDF',
+      author: authorLine?.text || '作者不明',
+      ncode,
+    };
+  } finally {
+    page.cleanup?.();
   }
-
-  const normalizedLines = lines
-    .map((line) => ({
-      y: line.y,
-      fontSize: line.fontSize,
-      text: line.items
-        .sort((a, b) => a.x - b.x)
-        .map((item) => item.text)
-        .join('')
-        .trim(),
-    }))
-    .filter((line) => line.text && !/^HinaProject Inc\.?$/i.test(line.text) && !/^[0-9０-９]+$/.test(line.text));
-
-  const titleLine = [...normalizedLines].sort((a, b) => b.fontSize - a.fontSize)[0];
-  const authorLine = titleLine
-    ? normalizedLines
-        .filter((line) => line !== titleLine && line.y > titleLine.y)
-        .sort((a, b) => a.y - b.y)[0]
-    : undefined;
-
-  const fileBase = fileName.replace(/\.pdf$/i, '').trim();
-  const ncode = /^N[0-9A-Z]+$/i.test(fileBase) ? fileBase.toUpperCase() : null;
-
-  return {
-    title: titleLine?.text || fileBase || '読み込んだPDF',
-    author: authorLine?.text || '作者不明',
-    ncode,
-  };
 }
 
 async function coverContainsNarouMark(pdf: NarouPdfDocumentLike): Promise<boolean> {
   const page = await pdf.getPage(1);
-  const textContent = await page.getTextContent();
-  const text = textContent.items
-    .filter(isTextItem)
-    .map((item) => item.str)
-    .join(' ');
-  return /HinaProject/i.test(text);
+
+  try {
+    const textContent = await page.getTextContent();
+    const text = textContent.items
+      .filter(isTextItem)
+      .map((item) => item.str)
+      .join(' ');
+    return /HinaProject/i.test(text);
+  } finally {
+    page.cleanup?.();
+  }
+}
+
+function yieldToEventLoop(): Promise<void> {
+  return new Promise((resolve) => globalThis.setTimeout(resolve, 0));
 }
 
 export async function looksLikeNarouPdf(
@@ -547,6 +598,7 @@ export async function looksLikeNarouPdf(
 export async function parseNarouPdf(
   pdf: NarouPdfDocumentLike,
   fileName: string,
+  onProgress?: NarouPdfProgressCallback,
 ): Promise<NarouPdfResult> {
   const metadata = await extractCoverMetadata(pdf, fileName);
   const headingColumnX = await detectHeadingColumnX(pdf);
@@ -556,6 +608,7 @@ export async function parseNarouPdf(
   let currentParagraphs: string[] = [];
   let pendingPrefaceTitle: string | null = null;
   let pendingPrefaceParagraphs: string[] = [];
+  let leadingParagraphs: string[] = [];
   let activeSection: 'none' | HeadingKind = 'none';
 
   const flushChapter = () => {
@@ -579,7 +632,12 @@ export async function parseNarouPdf(
     if (heading?.kind === 'preface') {
       flushChapter();
       pendingPrefaceTitle = heading.title;
-      pendingPrefaceParagraphs = ['【前書き】'];
+      pendingPrefaceParagraphs = [];
+      if (chapters.length === 0 && leadingParagraphs.length > 0) {
+        pendingPrefaceParagraphs.push(...leadingParagraphs);
+        leadingParagraphs = [];
+      }
+      pendingPrefaceParagraphs.push('【前書き】');
       activeSection = 'preface';
       appendSegments(pendingPrefaceParagraphs, extraction.segments, true);
       return;
@@ -589,6 +647,11 @@ export async function parseNarouPdf(
       if (currentTitle) flushChapter();
       currentTitle = heading.title;
       currentParagraphs = [];
+
+      if (chapters.length === 0 && leadingParagraphs.length > 0) {
+        currentParagraphs.push(...leadingParagraphs);
+        leadingParagraphs = [];
+      }
 
       if (pendingPrefaceTitle === heading.title && pendingPrefaceParagraphs.length > 0) {
         currentParagraphs.push(...pendingPrefaceParagraphs);
@@ -613,8 +676,12 @@ export async function parseNarouPdf(
       appendSegments(pendingPrefaceParagraphs, extraction.segments, false);
     } else if (activeSection === 'body' || activeSection === 'afterword') {
       appendSegments(currentParagraphs, extraction.segments, false);
+    } else if (chapters.length === 0) {
+      appendSegments(leadingParagraphs, extraction.segments, leadingParagraphs.length === 0);
     }
   };
+
+  onProgress?.(1, pdf.numPages);
 
   for (let batchStart = 2; batchStart <= pdf.numPages; batchStart += EXTRACTION_CONCURRENCY) {
     const pageNumbers = Array.from(
@@ -625,6 +692,10 @@ export async function parseNarouPdf(
       pageNumbers.map((pageNumber) => extractPage(pdf, pageNumber, headingColumnX)),
     );
     for (const extraction of extractions) consumeExtraction(extraction);
+
+    const processedPages = pageNumbers[pageNumbers.length - 1];
+    onProgress?.(processedPages, pdf.numPages);
+    await yieldToEventLoop();
   }
 
   flushChapter();
