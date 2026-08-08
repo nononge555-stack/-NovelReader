@@ -19,29 +19,25 @@ export async function importPdfAsNovel(file: File): Promise<Novel> {
   const pdf = await getDocument({ data }).promise;
   const pageCount = pdf.numPages;
 
-  try {
-    if (await looksLikeNarouPdf(pdf, file.name)) {
-      const parsed = await parseNarouPdf(pdf, file.name);
-      const ncodeText = parsed.ncode ? ` / ${parsed.ncode}` : '';
+  if (await looksLikeNarouPdf(pdf, file.name)) {
+    const parsed = await parseNarouPdf(pdf, file.name);
+    const ncodeText = parsed.ncode ? ` / ${parsed.ncode}` : '';
 
-      return {
-        id: makeNovelId(file),
-        title: parsed.title,
-        author: parsed.author,
-        description: `小説家になろうのPDFからブラウザ内で読み込んだ作品です（${pageCount}ページ${ncodeText}）。`,
-        chapters: parsed.chapters,
-      };
-    }
-
-    const parsed = await parseHamelnVerticalPdf(pdf, file.name);
     return {
       id: makeNovelId(file),
       title: parsed.title,
       author: parsed.author,
-      description: `ハーメルンの縦書きPDF（文庫・特殊タグ一部あり）からブラウザ内で読み込んだ作品です（${pageCount}ページ）。`,
+      description: `小説家になろうのPDFからブラウザ内で読み込んだ作品です（${pageCount}ページ${ncodeText}）。`,
       chapters: parsed.chapters,
     };
-  } finally {
-    await pdf.destroy();
   }
+
+  const parsed = await parseHamelnVerticalPdf(pdf, file.name);
+  return {
+    id: makeNovelId(file),
+    title: parsed.title,
+    author: parsed.author,
+    description: `ハーメルンの縦書きPDF（文庫・特殊タグ一部あり）からブラウザ内で読み込んだ作品です（${pageCount}ページ）。`,
+    chapters: parsed.chapters,
+  };
 }
