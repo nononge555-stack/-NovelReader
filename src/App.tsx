@@ -4,6 +4,7 @@ import { Reader } from './components/Reader';
 import { sampleNovel } from './data/sampleNovel';
 import type { Novel, ReaderSettings } from './models/Novel';
 import { importPdfAsNovel } from './pdf/importPdf';
+import { loadStoredNovels, saveStoredNovel } from './storage/novelStorage';
 import {
   loadChapterProgress,
   loadReaderSettings,
@@ -23,6 +24,28 @@ export default function App() {
     saveReaderSettings(settings);
   }, [settings]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    loadStoredNovels()
+      .then((storedNovels) => {
+        if (cancelled || storedNovels.length === 0) return;
+
+        setNovels((current) => {
+          const currentIds = new Set(current.map((novel) => novel.id));
+          const restored = storedNovels.filter((novel) => !currentIds.has(novel.id));
+          return [...restored, ...current];
+        });
+      })
+      .catch((error) => {
+        console.error('保存済み作品の読み込みに失敗しました。', error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const openNovel = (novel: Novel) => {
     const savedIndex = loadChapterProgress(novel.id);
     const safeIndex = Math.min(savedIndex, Math.max(novel.chapters.length - 1, 0));
@@ -36,8 +59,19 @@ export default function App() {
 
     try {
       const novel = await importPdfAsNovel(file);
+      let storageWarning = '';
+
+      try {
+        await saveStoredNovel(novel);
+      } catch (storageError) {
+        console.error('作品のIndexedDB保存に失敗しました。', storageError);
+        storageWarning = ' ブラウザへの保存に失敗したため、リロードするとこの作品は消えます。';
+      }
+
       setNovels((current) => [novel, ...current.filter((item) => item.id !== novel.id)]);
-      setPdfImportMessage(`${novel.title} を読み込みました（${novel.chapters.length}話を検出）。`);
+      setPdfImportMessage(
+        `${novel.title} を読み込みました（${novel.chapters.length}話を検出）。${storageWarning}`,
+      );
       openNovel(novel);
     } catch (error) {
       console.error(error);
