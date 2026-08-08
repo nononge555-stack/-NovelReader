@@ -108,7 +108,12 @@ export default function App() {
       setPdfImportMessage(`${file.name} を解析しています…`);
 
       try {
-        const novel = await importPdfAsNovel(file);
+        const novel = await importPdfAsNovel(file, (processedPages, totalPages) => {
+          const percentage = Math.round((processedPages / totalPages) * 100);
+          setPdfImportMessage(
+            `${file.name} を解析しています… ${processedPages} / ${totalPages}ページ（${percentage}%）`,
+          );
+        });
 
         try {
           await saveStoredNovel(novel);
