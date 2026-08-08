@@ -2,7 +2,7 @@ import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import type { Novel } from '../models/Novel';
 import { parseHamelnVerticalPdf } from './hamelnVerticalPdf';
-import { looksLikeNarouPdf, parseNarouPdf } from './narouPdf';
+import { looksLikeNarouPdf, parseNarouPdf } from './narouPdfV2';
 
 GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
