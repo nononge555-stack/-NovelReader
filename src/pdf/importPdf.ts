@@ -6,11 +6,16 @@ import { looksLikeNarouPdf, parseNarouPdf } from './narouPdf';
 
 GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
+export type PdfImportProgressCallback = (processedPages: number, totalPages: number) => void;
+
 function makeNovelId(file: File): string {
   return `pdf:${file.name}:${file.size}:${file.lastModified}`;
 }
 
-export async function importPdfAsNovel(file: File): Promise<Novel> {
+export async function importPdfAsNovel(
+  file: File,
+  onProgress?: PdfImportProgressCallback,
+): Promise<Novel> {
   if (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf') {
     throw new Error('PDFファイルを選択してください。');
   }
@@ -20,7 +25,7 @@ export async function importPdfAsNovel(file: File): Promise<Novel> {
   const pageCount = pdf.numPages;
 
   if (await looksLikeNarouPdf(pdf, file.name)) {
-    const parsed = await parseNarouPdf(pdf, file.name);
+    const parsed = await parseNarouPdf(pdf, file.name, onProgress);
     const ncodeText = parsed.ncode ? ` / ${parsed.ncode}` : '';
 
     return {
