@@ -1,0 +1,138 @@
+.drop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(33, 31, 27, 0.36);
+  backdrop-filter: blur(5px);
+  pointer-events: none;
+}
+
+.drop-overlay::before {
+  position: absolute;
+  inset: 18px;
+  border: 2px dashed rgba(255, 255, 255, 0.78);
+  border-radius: 28px;
+  content: '';
+}
+
+.drop-overlay-card {
+  position: relative;
+  display: grid;
+  gap: 8px;
+  min-width: min(420px, 100%);
+  padding: 28px 32px;
+  border-radius: 20px;
+  color: #25231f;
+  background: #fffdf8;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.22);
+  text-align: center;
+}
+
+.drop-overlay-card strong {
+  font-family: 'Noto Serif JP', serif;
+  font-size: 1.15rem;
+}
+
+.drop-overlay-card span {
+  color: #746d63;
+  font-size: 0.85rem;
+}
+
+.toast {
+  position: fixed;
+  top: 22px;
+  right: 22px;
+  z-index: 50;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) 30px;
+  align-items: center;
+  gap: 10px;
+  width: min(420px, calc(100vw - 32px));
+  min-height: 60px;
+  padding: 12px 12px 12px 14px;
+  border: 1px solid rgba(65, 58, 49, 0.12);
+  border-radius: 16px;
+  color: #2c2924;
+  background: rgba(255, 253, 248, 0.97);
+  box-shadow: 0 20px 60px rgba(43, 37, 29, 0.2);
+  backdrop-filter: blur(16px);
+  animation: toast-enter 180ms ease-out;
+}
+
+.toast-icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.toast-success .toast-icon {
+  color: #24583f;
+  background: #dff2e7;
+}
+
+.toast-error .toast-icon {
+  color: #8b302b;
+  background: #f8dedb;
+}
+
+.toast-info .toast-icon {
+  color: #4d536c;
+  background: #e6e8f2;
+}
+
+.toast-message {
+  min-width: 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.toast-close {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  color: #6e675d;
+  background: transparent;
+  font-size: 1.25rem;
+}
+
+.toast-close:hover {
+  background: rgba(71, 64, 54, 0.08);
+}
+
+@keyframes toast-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 700px) {
+  .toast {
+    top: 12px;
+    right: 16px;
+  }
+
+  .drop-overlay::before {
+    inset: 10px;
+    border-radius: 20px;
+  }
+
+  .drop-overlay-card {
+    padding: 22px 20px;
+  }
+}
