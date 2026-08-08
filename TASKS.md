@@ -1,55 +1,50 @@
-# Tasks
+# NovelReader タスク
 
-## v0.1 — Reader shell
+## P0 - 最優先: ハーメルンPDF
 
-- [x] Create public GitHub repository
-- [x] Add project README
-- [x] Add MIT license
-- [x] Add AGENTS.md / PLAN.md / TASKS.md
-- [x] Set up React + TypeScript + Vite
-- [x] Add responsive library screen
-- [x] Add built-in original sample novel
-- [x] Add chapter reader
-- [x] Add previous / next chapter navigation
-- [x] Add theme, font-size, line-height, and text-width settings
-- [x] Save settings to localStorage
-- [x] Save chapter-level reading progress to localStorage
-- [x] Add GitHub Pages deployment workflow
-- [ ] Enable GitHub Pages source as GitHub Actions in repository settings
-- [ ] Verify first successful Pages deployment
+- [x] PDF選択ボタンを有効化する
+- [x] `pdfjs-dist` を導入する
+- [x] PDFをブラウザ内で読み込む
+- [x] 各ページから文字列を抽出する
+- [x] 簡易的な話見出し検出を実装する
+- [x] 抽出結果をReaderへ渡す
+- [ ] ハーメルンの実PDFを使って抽出結果を確認する
+- [ ] 作品タイトルの取得規則を決める
+- [ ] 作者名の取得規則を決める
+- [ ] 話タイトル / 話境界の規則を決める
+- [ ] 本文段落の復元精度を上げる
+- [ ] ページ番号・ヘッダー・フッターを除去する
+- [ ] ルビの抽出方法を調査する
+- [ ] 挿絵の取り込み方法を調査する
+- [ ] 100話以上の長編PDFで性能を確認する
 
-## v0.2 — Reader improvements
+## P1 - PDF取り込み後の保存
 
-- [ ] Add chapter list / table of contents
-- [ ] Add vertical writing mode
-- [ ] Save scroll/page position within each chapter
-- [ ] Add keyboard navigation
-- [ ] Add swipe/touch navigation
-- [ ] Add bookmarks
-- [ ] Improve mobile settings UI
-- [ ] Add automated tests
+- [ ] IndexedDBを導入する
+- [ ] インポートした作品を保存する
+- [ ] ライブラリから作品を削除できるようにする
+- [ ] 読書位置と作品データの保存を統合する
 
-## v0.3 — IndexedDB library
+## P2 - Reader
 
-- [ ] Design versioned database schema
-- [ ] Add NovelRepository abstraction
-- [ ] Persist novels and chapters in IndexedDB
-- [ ] Add delete / rename operations
-- [ ] Add import/export backup for local metadata
+- [ ] 縦書き
+- [ ] 目次
+- [ ] ブックマーク
+- [ ] 全文検索
+- [ ] Reader設定の追加
+- [ ] モバイル操作改善
 
-## v0.4 — PDF import
+## P3 - 配布・品質
 
-- [ ] Evaluate PDF.js integration
-- [ ] Define importer interface independent of PDF
-- [ ] Extract text locally in browser
-- [ ] Detect chapters
-- [ ] Reconstruct paragraphs
-- [ ] Add import preview / correction screen
-- [ ] Investigate ruby and illustration extraction
+- [ ] 自動テスト
+- [ ] PDF解析のテストデータ方針を決める
+- [ ] アクセシビリティ確認
+- [ ] PWA対応
+- [ ] オフライン対応
 
-## Later
+## 後回し
 
-- [ ] PWA / offline support
-- [ ] EPUB import
-- [ ] TXT import
-- [ ] HTML import
+- [ ] EPUB
+- [ ] TXT
+- [ ] HTML
+- [ ] 青空文庫形式

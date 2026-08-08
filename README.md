@@ -1,47 +1,88 @@
 # NovelReader
 
-NovelReader is an open-source, browser-based reader for enjoying locally imported novels in a comfortable reading UI.
+NovelReader は、ローカルに保存した小説ファイルをブラウザ上で読みやすい形に変換して楽しむための、オープンソースのWeb小説リーダーです。
 
-> **Current status:** the first milestone focuses on the reader experience and GitHub Pages deployment. PDF import is intentionally deferred to a later milestone.
+現在の最優先目標は、**ハーメルンからユーザー自身が保存したPDFを読み込み、小説リーダー形式で表示できること**です。
 
-## Goals
+> [!IMPORTANT]
+> NovelReader はハーメルン公式のツールではなく、ハーメルンとは提携していません。PDFや抽出した本文をNovelReader側のサーバーへ送信する設計にはせず、ブラウザ内で処理する方針です。
 
-- Run entirely as a static web app on GitHub Pages.
-- Keep imported documents and extracted novel text on the user's device.
-- Provide a clean, responsive reading experience on desktop and mobile.
-- Stay format-agnostic so PDF, EPUB, TXT, HTML, and other importers can be added later.
-- Never bundle or distribute copyrighted novels with this repository.
+## 現在できること
 
-## Current prototype
+- GitHub Pages上で動作する静的Webアプリ
+- ライブラリ画面
+- サンプル作品の閲覧
+- 前話 / 次話への移動
+- 読書位置の保存
+- 紙 / ダークテーマ
+- 文字サイズ・行間・本文幅の変更
+- PDFファイルの選択とブラウザ内での文字抽出（試験実装）
+- PDF内の「第○話」「第○章」「プロローグ」などを使った簡易的な話分割（試験実装）
 
-The initial prototype includes:
+## 最優先: ハーメルンPDF対応
 
-- A small library screen with a built-in sample novel.
-- Chapter navigation.
-- Reading progress saved in `localStorage`.
-- Reader settings for theme, font size, line height, and text width.
-- Responsive styling for desktop and mobile.
-- GitHub Pages deployment through GitHub Actions.
+PDF取り込みの基盤には Mozilla PDF.js (`pdfjs-dist`) を使用します。
 
-PDF parsing, IndexedDB persistence, vertical writing, bookmarks, and PWA support are planned but are **not implemented yet**.
+現在は次の流れまで実装しています。
 
-## Tech stack
+```text
+PDFを選択
+  ↓
+ブラウザ内でPDF.jsが解析
+  ↓
+テキスト抽出
+  ↓
+簡易的に話タイトルを検出
+  ↓
+NovelReaderの作品データへ変換
+  ↓
+Readerで表示
+```
+
+ただし、**ハーメルンPDF固有のレイアウト解析はまだ調整中**です。実際のPDFで、以下を順番に対応します。
+
+- 作品タイトルの取得
+- 作者名の取得
+- 各話タイトルの正確な検出
+- 本文の改行・段落の復元
+- ページ番号やヘッダー / フッターの除去
+- ルビの復元
+- 挿絵の取り込み
+- 複数話を含むPDFの安定した分割
+
+実PDFをリポジトリへ同梱することはせず、テストが必要な場合も権利面に配慮したデータを使用します。
+
+## プライバシー方針
+
+NovelReaderは、インポートしたPDFや小説本文を外部サーバーへアップロードしない方針です。
+
+現在のPDF試験実装も、選択したPDFをブラウザ内のJavaScriptで解析します。将来的な保存機能もIndexedDBなどのブラウザ内ストレージを基本とします。
+
+## 著作権について
+
+NovelReader自体は小説作品を提供・配布しません。
+
+利用者は、読み込むPDFや文書を利用する権利があることを自身で確認してください。第三者の著作物をGitHub等へ再配布する用途は想定していません。
+
+## 技術構成
 
 - React
 - TypeScript
 - Vite
-- GitHub Pages / GitHub Actions
+- Mozilla PDF.js (`pdfjs-dist`)
+- GitHub Pages
+- GitHub Actions
 
-## Local development
+## ローカル開発
 
-Requirements: Node.js 22 or newer is recommended.
+Node.js 22 以降を推奨します。
 
 ```bash
 npm install
 npm run dev
 ```
 
-Production build:
+本番ビルド:
 
 ```bash
 npm run build
@@ -50,22 +91,25 @@ npm run preview
 
 ## GitHub Pages
 
-The repository contains `.github/workflows/deploy-pages.yml`.
+`main` ブランチへのpushで `.github/workflows/deploy-pages.yml` が実行され、GitHub Pagesへデプロイされます。
 
-In GitHub, open **Settings → Pages** and set **Build and deployment → Source** to **GitHub Actions**. Pushes to `main` will then build and deploy the `dist` directory.
+## ロードマップ
 
-## Privacy and content policy
+詳細は [PLAN.md](./PLAN.md) を参照してください。作業単位は [TASKS.md](./TASKS.md) で管理します。
 
-NovelReader itself does not provide or distribute novels. Future import features are intended to process user-selected documents locally in the browser. Users are responsible for ensuring they have the right to use documents they import.
+大きな順序は次の通りです。
 
-## Roadmap
+1. ハーメルンPDFの読み込みを実用レベルにする
+2. 読み込んだ作品をIndexedDBへ保存する
+3. Readerの表示品質を上げる
+4. 縦書き・目次・検索・ブックマークを追加する
+5. PWA / オフライン対応
+6. 必要に応じてEPUB / TXT / HTMLなどへ拡張する
 
-See [PLAN.md](./PLAN.md) for milestones and [TASKS.md](./TASKS.md) for the working task list.
+## コントリビューション
 
-## Contributing
+Issue・Pull Requestを歓迎します。詳しくは [CONTRIBUTING.md](./CONTRIBUTING.md) を参照してください。
 
-Contributions are welcome. See [CONTRIBUTING.md](./CONTRIBUTING.md).
+## ライセンス
 
-## License
-
-MIT License. See [LICENSE](./LICENSE).
+NovelReaderのソースコードはMIT Licenseで公開しています。詳しくは [LICENSE](./LICENSE) を参照してください。

@@ -1,72 +1,92 @@
-# Development Plan
+# NovelReader 開発計画
 
-## Product vision
+## プロジェクトの目的
 
-Build a privacy-first open-source novel reader that runs entirely in the browser and can later import locally saved documents such as PDF files without uploading their contents to a server.
+GitHub Pagesだけで動作し、ユーザーが自分で用意した小説ファイルをブラウザ内で処理して快適に読めるOSSのWebリーダーを作る。
 
-## Milestone 0 — Repository and deployable reader shell
+当面は対象を広げすぎず、**ハーメルンから保存したPDFを正しく読み込めることを最優先**とする。
 
-Goal: establish an OSS foundation that can be deployed to GitHub Pages.
+## 基本方針
 
-- React + TypeScript + Vite project
-- MIT license and contribution docs
-- GitHub Pages workflow
-- responsive library screen
-- sample novel reader
-- basic reading settings
-- chapter-level progress persistence
+- PDFや抽出本文を外部サーバーへ送信しない。
+- 小説本文をリポジトリへ同梱しない。
+- UIとインポーターを分離し、将来PDF以外の形式も追加できる構造にする。
+- ハーメルン専用処理は汎用PDF抽出層の上に置く。
+- 実PDFで確認できていない解析ロジックは「対応済み」と扱わない。
 
-## Milestone 1 — Reader experience
+## Milestone 0.1 - Reader基盤
 
-Goal: make the app pleasant to use before implementing document import.
+- [x] React + TypeScript + Vite
+- [x] GitHub Pagesデプロイ
+- [x] ライブラリ画面
+- [x] Reader画面
+- [x] 前話 / 次話
+- [x] 読書位置保存
+- [x] テーマ・文字サイズ・行間・本文幅
 
-- chapter table of contents
-- horizontal / vertical writing mode
-- improved typography controls
-- keyboard and touch navigation
-- reading position within a chapter
-- bookmarks
-- focus and accessibility review
+## Milestone 0.2 - ハーメルンPDF取り込み
 
-## Milestone 2 — Local library persistence
+最優先マイルストーン。
 
-Goal: support real user libraries without a server.
+### 0.2.1 PDF基盤
 
-- IndexedDB schema
-- novel repository abstraction
-- settings/progress migrations
-- delete / rename / metadata editing
-- storage usage display and recovery handling
+- [x] PDFファイル選択UI
+- [x] PDF.js導入
+- [x] ブラウザ内でテキスト抽出
+- [x] 抽出結果を `Novel` / `Chapter` に変換
+- [x] インポート直後にReaderで閲覧
 
-## Milestone 3 — PDF importer
+### 0.2.2 ハーメルンPDF解析
 
-Goal: convert user-selected PDFs into the normalized `Novel` model locally in the browser.
+- [ ] 実際のハーメルンPDFのレイアウトを調査
+- [ ] 作品タイトル抽出
+- [ ] 作者名抽出
+- [ ] 話タイトル検出
+- [ ] 話境界の正確な判定
+- [ ] 本文の段落復元
+- [ ] ページ番号除去
+- [ ] 共通ヘッダー / フッター除去
+- [ ] 空白・改行の正規化
+- [ ] 長編PDFでの性能確認
+- [ ] エラー表示の改善
 
-- PDF.js adapter
-- text extraction
-- title / author metadata extraction where possible
-- chapter-title detection
-- paragraph reconstruction
-- import preview and correction UI
-- image/illustration strategy
-- ruby/furigana investigation
-- explicit handling for unsupported/scanned PDFs
+### 0.2.3 表現の復元
 
-PDF import must not upload files or extracted text to an external server.
+- [ ] ルビ
+- [ ] 挿絵
+- [ ] 強調等の特殊表現が存在する場合の扱いを検討
 
-## Milestone 4 — Offline and additional formats
+## Milestone 0.3 - ローカルライブラリ
 
-- PWA installability
-- offline app shell
-- EPUB importer
-- TXT importer
-- HTML importer
-- export / backup of local library metadata
+- [ ] IndexedDB導入
+- [ ] インポート作品の永続保存
+- [ ] 作品削除
+- [ ] 再インポート / 更新
+- [ ] 読書進捗の永続化統合
 
-## Non-goals for the initial releases
+## Milestone 0.4 - Reader強化
 
-- hosting copyrighted novel files
-- a cloud account system
-- server-side document conversion
-- DRM removal
-- scraping or automatically downloading works from third-party novel sites
+- [ ] 縦書き
+- [ ] 目次
+- [ ] 全文検索
+- [ ] ブックマーク
+- [ ] フォント設定
+- [ ] キーボード操作
+- [ ] スマートフォン向け操作改善
+
+## Milestone 0.5 - PWA
+
+- [ ] Web App Manifest
+- [ ] Service Worker
+- [ ] オフライン起動
+- [ ] 保存済み作品のオフライン閲覧
+
+## 将来候補
+
+ハーメルンPDF対応が安定してから検討する。
+
+- EPUB
+- TXT
+- HTML
+- 青空文庫形式
+- インポーターのプラグイン化
