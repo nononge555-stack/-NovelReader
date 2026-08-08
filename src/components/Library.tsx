@@ -29,7 +29,7 @@ export function Library({
           <p className="eyebrow">OPEN SOURCE NOVEL READER</p>
           <h1>NovelReader</h1>
           <p className="lead">
-            まずはハーメルンから保存したPDFを、ブラウザ内で読み込んで快適に読めることを目指しています。
+            ハーメルンや小説家になろうから保存した対応PDFを、ブラウザ内で読み込んで快適に読めます。
           </p>
           {pdfImportMessage && (
             <p className="lead" role="status" aria-live="polite">
@@ -86,7 +86,7 @@ export function Library({
       </section>
 
       <footer className="library-footer">
-        <span>PDFは端末内のブラウザで解析します。現在はハーメルンPDF対応を調整中です。</span>
+        <span>PDFは端末内のブラウザで解析します。ハーメルン / 小説家になろうPDFに対応中です。</span>
         <a href="https://github.com/nononge555-stack/-NovelReader" target="_blank" rel="noreferrer">
           GitHub
         </a>
