@@ -59,7 +59,6 @@ export interface HamelnVerticalPdfResult {
 }
 
 const chapterHeadingPattern = /^第[0-9０-９一二三四五六七八九十百千]+話$/;
-const sceneBreakPattern = /^■◆■$/;
 
 const verticalCharacterMap: Record<string, string> = {
   '﹁': '「',
@@ -222,8 +221,7 @@ function attachRuby(columns: TextColumn[], rubyItems: PositionedTextItem[], body
     const rubyCenterY = (rubyYMin + rubyYMax) / 2;
 
     // In this Hameln vertical-bunko format ruby is printed immediately to the right
-    // of the base text. Scene-break-only columns do not overlap the ruby vertically,
-    // so the y-range check also prevents false attachment to them.
+    // of the base text. The y-range check avoids attaching unrelated small text.
     const base = columns
       .filter(
         (column) =>
@@ -348,7 +346,6 @@ function textToParagraphs(text: string): string[] {
 
   let normalized = normalizeParagraphText(text);
   normalized = normalized.replace(/　+/g, '\n');
-  normalized = normalized.replace(/■◆■/g, '\n■◆■\n');
 
   // Dialogue paragraphs in this PDF omit the normal one-character indent.
   // A quotation immediately after terminal punctuation is therefore treated as a new paragraph.
@@ -357,11 +354,7 @@ function textToParagraphs(text: string): string[] {
   return normalized
     .split(/\n+/)
     .map((paragraph) => paragraph.trim())
-    .filter(Boolean)
-    .flatMap((paragraph) => {
-      if (sceneBreakPattern.test(paragraph)) return ['■◆■'];
-      return [paragraph];
-    });
+    .filter(Boolean);
 }
 
 function parseFileMetadata(fileName: string): { title: string; author: string } {
